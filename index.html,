@@ -1,0 +1,294 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Time Table Scheduling System</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#f1f5f9;color:#172554}
+header{background:#123b70;color:white;padding:20px;text-align:center}
+header h2{margin:5px}
+nav{display:flex;flex-wrap:wrap;gap:7px;padding:12px;background:#dbeafe}
+button{background:#155eab;color:white;border:0;border-radius:6px;padding:11px;cursor:pointer}
+nav button{flex:1;min-width:105px}
+main{max-width:1000px;margin:20px auto;padding:15px}
+.card{background:white;padding:18px;margin-bottom:15px;border-radius:10px;box-shadow:0 2px 8px #cbd5e1}
+input,select{width:100%;padding:11px;margin:6px 0 12px;border:1px solid #94a3b8;border-radius:5px}
+label{font-weight:bold}
+h3{color:#155eab}
+table{width:100%;border-collapse:collapse;background:white;margin-top:12px}
+th,td{border:1px solid #94a3b8;padding:9px;text-align:left}
+th{background:#dbeafe}
+.tablewrap{overflow-x:auto}
+.hidden{display:none}
+.danger{background:#b91c1c}
+.notice{padding:10px;background:#fef3c7;border-radius:6px}
+@media print{
+nav,#login,#forms,#generate button,.no-print,header p{display:none!important}
+body{background:white}
+.card{box-shadow:none}
+}
+</style>
+</head>
+<body>
+<header>
+<h2>🎓 Smart Time Table Scheduling System</h2>
+<p>Education & College Management</p>
+</header>
+
+<section id="login" class="card" style="max-width:420px;margin:25px auto">
+<h3>🔐 Admin Login</h3>
+<p>Enter your administrator login details.</p>
+<label>Login ID</label>
+<input id="loginId" placeholder="Enter login ID">
+<label>Password</label>
+<input id="loginPass" type="password" placeholder="Enter password">
+<button onclick="login()">Login</button>
+<p id="loginMsg" role="alert"></p>
+<p class="notice">Demo login ID: admin<br>Demo password: admin123</p>
+</section>
+
+<div id="app" class="hidden">
+<nav>
+<button onclick="show('home')">🏠 Home</button>
+<button onclick="show('teachers')">👩‍🏫 Teachers</button>
+<button onclick="show('subjects')">📚 Subjects</button>
+<button onclick="show('classes')">🏫 Classes</button>
+<button onclick="show('rooms')">🚪 Rooms</button>
+<button onclick="show('slots')">⏰ Time Slots</button>
+<button onclick="show('generate')">⚙️ Generate</button>
+<button onclick="show('timetable')">📅 View Timetable</button>
+<button onclick="logout()">Logout</button>
+</nav>
+
+<main>
+<section id="home" class="card page">
+<h3>Welcome, Administrator!</h3>
+<p>Manage teachers, subjects, classes, rooms and periods here.</p>
+<p>First add all details. Then open Generate Timetable.</p>
+<div id="counts"></div>
+</section>
+
+<section id="teachers" class="card page hidden">
+<h3>Add Teachers</h3>
+<form id="teacherForm">
+<label>Teacher Name</label><input id="teacherName" required>
+<label>Teacher Login ID</label><input id="teacherId" required>
+<label>Teacher Password</label><input id="teacherPass" type="password" required>
+<button>Add Teacher</button>
+</form>
+<div id="teacherList"></div>
+</section>
+
+<section id="subjects" class="card page hidden">
+<h3>Add Subjects</h3>
+<form id="subjectForm">
+<label>Subject Name</label><input id="subjectName" required>
+<label>Subject Code</label><input id="subjectCode" required>
+<label>Teacher</label><select id="subjectTeacher" required></select>
+<label>Class/Division</label><select id="subjectClass" required></select>
+<label>Periods per week</label><input id="subjectPeriods" type="number" min="1" max="30" value="3" required>
+<button>Add Subject</button>
+</form>
+<div id="subjectList"></div>
+</section>
+
+<section id="classes" class="card page hidden">
+<h3>Add Class / Division</h3>
+<form id="classForm">
+<label>Class (e.g. SYBSc IT)</label><input id="className" required>
+<label>Division (e.g. A)</label><input id="classDiv" required>
+<button>Add Class</button>
+</form>
+<div id="classList"></div>
+</section>
+
+<section id="rooms" class="card page hidden">
+<h3>Add Rooms</h3>
+<form id="roomForm">
+<label>Room Name / Number</label><input id="roomName" placeholder="Room 101" required>
+<button>Add Room</button>
+</form>
+<div id="roomList"></div>
+</section>
+
+<section id="slots" class="card page hidden">
+<h3>Add Time Slots</h3>
+<form id="slotForm">
+<label>Day</label>
+<select id="slotDay">
+<option>Monday</option><option>Tuesday</option>
+<option>Wednesday</option><option>Thursday</option>
+<option>Friday</option><option>Saturday</option>
+</select>
+<label>Period Number</label><input id="slotPeriod" type="number" min="1" max="10" required>
+<label>Start Time</label><input id="slotStart" type="time" required>
+<label>End Time</label><input id="slotEnd" type="time" required>
+<button>Add Time Slot</button>
+</form>
+<div id="slotList"></div>
+</section>
+
+<section id="generate" class="card page hidden">
+<h3>Generate Timetable</h3>
+<p>Choose a class and create a timetable from your saved details.</p>
+<label>Class / Division</label><select id="generateClass"></select>
+<button onclick="generateTimetable()">Generate Timetable</button>
+<p id="generateMsg"></p>
+</section>
+
+<section id="timetable" class="card page hidden">
+<h3>📅 Weekly Timetable</h3>
+<div id="timetableOutput">Generate a timetable to see it here.</div>
+<button onclick="window.print()">🖨️ Print Timetable</button>
+</section>
+</main>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const keys=['teachers','subjects','classes','rooms','slots','timetable'];
+let data={};
+keys.forEach(k=>data[k]=JSON.parse(localStorage.getItem('stts_'+k)||'[]'));
+
+function save(k){
+ localStorage.setItem('stts_'+k,JSON.stringify(data[k]));
+}
+function login(){
+ if($('loginId').value==='admin' &&
+    $('loginPass').value==='admin123'){
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('loginMsg').textContent='';
+  render();show('home');
+ }else{
+  $('loginMsg').textContent='Incorrect login ID or password. Try again.';
+ }
+}
+function logout(){
+ $('app').classList.add('hidden');
+ $('login').classList.remove('hidden');
+ $('loginPass').value='';
+}
+function show(id){
+ document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+ $(id).classList.remove('hidden');
+ render();
+}
+function addForm(formId,kind,fields){
+ $(formId).addEventListener('submit',e=>{
+  e.preventDefault();
+  const item={};
+  fields.forEach(f=>item[f]=$(f).value.trim());
+  item.id=Date.now().toString();
+  data[kind].push(item);save(kind);
+  $(formId).reset();render();
+  alert('Saved successfully!');
+ });
+}
+addForm('teacherForm','teachers',['teacherName','teacherId','teacherPass']);
+addForm('subjectForm','subjects',['subjectName','subjectCode','subjectTeacher','subjectClass','subjectPeriods']);
+addForm('classForm','classes',['className','classDiv']);
+addForm('roomForm','rooms',['roomName']);
+addForm('slotForm','slots',['slotDay','slotPeriod','slotStart','slotEnd']);
+
+function esc(s){
+ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function classLabel(c){return c.className+' - '+c.classDiv}
+function options(id,items,label,placeholder){
+ const old=$(id).value;
+ $(id).innerHTML='<option value="">'+placeholder+'</option>'+
+ items.map(x=>'<option value="'+esc(x.id)+'">'+esc(label(x))+'</option>').join('');
+ if(items.some(x=>x.id===old))$(id).value=old;
+}
+function list(id,items,labels){
+ $(id).innerHTML=items.length?'<div class="tablewrap"><table><tr>'+
+ labels.map(l=>'<th>'+l[0]+'</th>').join('')+'<th>Action</th></tr>'+
+ items.map(x=>'<tr>'+labels.map(l=>'<td>'+esc(l[1](x))+'</td>').join('')+
+ '<td><button class="danger" onclick="removeItem(\''+
+ idKind(id)+'\',\''+esc(x.id)+'\')">Delete</button></td></tr>').join('')+
+ '</table></div>':'<p>No entries added yet.</p>';
+}
+function idKind(id){
+ return ({teacherList:'teachers',subjectList:'subjects',classList:'classes',roomList:'rooms',slotList:'slots'})[id];
+}
+function removeItem(kind,id){
+ if(!confirm('Delete this entry?'))return;
+ data[kind]=data[kind].filter(x=>x.id!==id);save(kind);
+ if(kind==='classes')data.subjects=data.subjects.filter(x=>x.subjectClass!==id);
+ save('subjects');render();
+}
+function render(){
+ options('subjectTeacher',data.teachers,x=>x.teacherName,'Choose teacher');
+ options('subjectClass',data.classes,classLabel,'Choose class/division');
+ options('generateClass',data.classes,classLabel,'Choose class/division');
+ list('teacherList',data.teachers,[['Teacher',x=>x.teacherName],['Login ID',x=>x.teacherId]]);
+ list('subjectList',data.subjects,[['Subject',x=>x.subjectName],['Code',x=>x.subjectCode],['Teacher',x=>(data.teachers.find(t=>t.id===x.subjectTeacher)||{}).teacherName||'Removed'],['Class',x=>{let c=data.classes.find(c=>c.id===x.subjectClass);return c?classLabel(c):'Removed'}],['Periods/week',x=>x.subjectPeriods]]);
+ list('classList',data.classes,[['Class',x=>x.className],['Division',x=>x.classDiv]]);
+ list('roomList',data.rooms,[['Room',x=>x.roomName]]);
+ list('slotList',data.slots,[['Day',x=>x.slotDay],['Period',x=>x.slotPeriod],['Time',x=>x.slotStart+' - '+x.slotEnd]]);
+ $('counts').textContent='Teachers: '+data.teachers.length+' | Subjects: '+data.subjects.length+' | Classes: '+data.classes.length+' | Rooms: '+data.rooms.length+' | Time slots: '+data.slots.length;
+}
+function generateTimetable(){
+ const cid=$('generateClass').value;
+ if(!cid){$('generateMsg').textContent='Please select a class/division.';return;}
+ if(!data.rooms.length||!data.slots.length){$('generateMsg').textContent='Please add rooms and time slots first.';return;}
+ const subjects=data.subjects.filter(s=>s.subjectClass===cid);
+ if(!subjects.length){$('generateMsg').textContent='Add subjects for this class first.';return;}
+ const slots=[...data.slots].sort((a,b)=>
+ ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].indexOf(a.slotDay)-
+ ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].indexOf(b.slotDay)||
+ Number(a.slotPeriod)-Number(b.slotPeriod));
+ const usedTeacher=new Set(),usedRoom=new Set(),usedClass=new Set();
+ const timetable=[];
+ let failed=0,counts={};
+ subjects.forEach(s=>counts[s.id]=0);
+ for(const sl of slots){
+  let chosen=null;
+  for(const s of subjects){
+   if(counts[s.id]>=Number(s.subjectPeriods))continue;
+   const teacher=data.teachers.find(t=>t.id===s.subjectTeacher);
+   if(!teacher)continue;
+   const classKey=cid+'|'+sl.slotDay+'|'+sl.slotPeriod;
+   const teacherKey=teacher.id+'|'+sl.slotDay+'|'+sl.slotPeriod;
+   const room=data.rooms.find(r=>!usedRoom.has(r.id+'|'+sl.slotDay+'|'+sl.slotPeriod));
+   if(!usedClass.has(classKey)&&!usedTeacher.has(teacherKey)&&room){
+    chosen={s,teacher,room};break;
+   }
+  }
+  if(chosen){
+   const {s,teacher,room}=chosen;
+   timetable.push({day:sl.slotDay,period:sl.slotPeriod,start:sl.slotStart,end:sl.slotEnd,subject:s.subjectName,teacher:teacher.teacherName,room:room.roomName,classId:cid});
+   counts[s.id]++;
+   usedClass.add(cid+'|'+sl.slotDay+'|'+sl.slotPeriod);
+   usedTeacher.add(teacher.id+'|'+sl.slotDay+'|'+sl.slotPeriod);
+   usedRoom.add(room.id+'|'+sl.slotDay+'|'+sl.slotPeriod);
+  }
+ }
+ subjects.forEach(s=>{if(counts[s.id]<Number(s.subjectPeriods))failed+=Number(s.subjectPeriods)-counts[s.id]});
+ data.timetable=data.timetable.filter(t=>t.classId!==cid).concat(timetable);
+ save('timetable');
+ $('generateMsg').textContent='Generated '+timetable.length+' periods. '+(failed?'Could not place '+failed+' requested periods. Add more slots or rooms.':'All requested periods were placed.');
+ show('timetable');
+}
+function displayTimetable(){
+ const rows=data.timetable;
+ if(!rows.length){$('timetableOutput').textContent='No timetable generated yet.';return;}
+ const cid=rows[0].classId;
+ const grouped={};
+ rows.forEach(t=>(grouped[t.day]??=[]).push(t));
+ $('timetableOutput').innerHTML=Object.keys(grouped).map(day=>
+ '<h3>'+esc(day)+'</h3><div class="tablewrap"><table><tr><th>Period</th><th>Time</th><th>Subject</th><th>Teacher</th><th>Class/Division</th><th>Room</th></tr>'+
+ grouped[day].sort((a,b)=>Number(a.period)-Number(b.period)).map(t=>{
+ let c=data.classes.find(c=>c.id===t.classId);
+ return '<tr><td>'+esc(t.period)+'</td><td>'+esc(t.start+' - '+t.end)+'</td><td>'+esc(t.subject)+'</td><td>'+esc(t.teacher)+'</td><td>'+esc(c?classLabel(c):'')+'</td><td>'+esc(t.room)+'</td></tr>';
+ }).join('')+'</table></div>').join('');
+}
+const oldRender=render;
+render=function(){oldRender();displayTimetable();};
+</script>
+</body>
+</html>
