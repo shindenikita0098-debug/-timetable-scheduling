@@ -1,0 +1,299 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Time Table Scheduling System</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172554}
+header{background:#123b70;color:white;padding:20px;text-align:center}
+nav{display:flex;flex-wrap:wrap;gap:7px;padding:12px;background:#dbeafe}
+button{border:0;border-radius:6px;padding:11px;background:#1765b1;color:white;cursor:pointer}
+nav button{flex:1;min-width:100px}
+main{max-width:1100px;margin:auto;padding:16px}
+.panel{background:white;padding:18px;border-radius:10px;margin:12px 0;box-shadow:0 2px 8px #0001}
+input,select{width:100%;padding:11px;margin:6px 0 12px;border:1px solid #cbd5e1;border-radius:5px}
+label{font-weight:bold;font-size:14px}
+h2{font-size:20px}
+.hidden{display:none!important}
+table{border-collapse:collapse;width:100%;background:white}
+th,td{border:1px solid #cbd5e1;padding:9px;text-align:left}
+th{background:#dbeafe}
+.tablewrap{overflow-x:auto}
+.danger{background:#b91c1c}
+.notice{padding:10px;background:#eff6ff;border-radius:6px}
+@media print{header,nav,.no-print,form{display:none!important}body,main{background:white;padding:0}.panel{box-shadow:none}table{font-size:11px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Smart Time Table Scheduling System</h1>
+<p>Education &amp; College Management</p>
+</header>
+
+<nav id="menu" class="hidden">
+<button onclick="showPage('home')">🏠 Home</button>
+<button onclick="showPage('teachers')">👩‍🏫 Teachers</button>
+<button onclick="showPage('subjects')">📚 Subjects</button>
+<button onclick="showPage('classes')">🏫 Classes</button>
+<button onclick="showPage('rooms')">🚪 Rooms</button>
+<button onclick="showPage('slots')">⏰ Time Slots</button>
+<button onclick="showPage('generate')">⚙️ Generate</button>
+<button onclick="showPage('timetable')">📅 Timetable</button>
+<button onclick="logout()">Logout</button>
+</nav>
+
+<main>
+<section id="login" class="panel">
+<h2>🔐 Admin / Teacher Login</h2>
+<p class="notice">Enter your correct login ID and password to continue.</p>
+<form onsubmit="login(event)">
+<label>Login ID</label>
+<input id="loginId" required autocomplete="username">
+<label>Password</label>
+<input id="loginPassword" type="password" required autocomplete="current-password">
+<button type="submit">Login</button>
+<p id="loginMessage" role="alert"></p>
+</form>
+</section>
+
+<section id="home" class="panel hidden">
+<h2>Welcome to the College Timetable System</h2>
+<p>Manage college teachers, subjects, classes, rooms and time slots.</p>
+<p id="welcome"></p>
+</section>
+
+<section id="teachers" class="panel hidden">
+<h2>Add Teachers</h2>
+<form onsubmit="addRecord(event,'teachers')">
+<label>Teacher Name</label><input id="tname" required>
+<label>Teacher Login ID</label><input id="tid" required>
+<label>Teacher Password</label><input id="tpw" type="password" required>
+<button>Save Teacher</button>
+</form>
+<div id="teachersList"></div>
+</section>
+
+<section id="subjects" class="panel hidden">
+<h2>Add Subjects</h2>
+<form onsubmit="addRecord(event,'subjects')">
+<label>Subject Name</label><input id="sname" required>
+<label>Subject Code</label><input id="scode" required>
+<label>Class / Division</label><select id="sclass" required></select>
+<label>Teacher</label><select id="steacher" required></select>
+<label>Periods per week</label><input id="periods" type="number" min="1" max="10" value="3" required>
+<button>Save Subject</button>
+</form>
+<div id="subjectsList"></div>
+</section>
+
+<section id="classes" class="panel hidden">
+<h2>Add Class / Division</h2>
+<form onsubmit="addRecord(event,'classes')">
+<label>Course / Class</label><input id="cname" placeholder="SYBSc IT" required>
+<label>Division</label><input id="cdivision" placeholder="A" required>
+<button>Save Class</button>
+</form>
+<div id="classesList"></div>
+</section>
+
+<section id="rooms" class="panel hidden">
+<h2>Add Rooms</h2>
+<form onsubmit="addRecord(event,'rooms')">
+<label>Room Number / Name</label><input id="rname" placeholder="Room 101" required>
+<button>Save Room</button>
+</form>
+<div id="roomsList"></div>
+</section>
+
+<section id="slots" class="panel hidden">
+<h2>Add Time Slots</h2>
+<form onsubmit="addRecord(event,'slots')">
+<label>Day</label>
+<select id="day">
+<option>Monday</option><option>Tuesday</option>
+<option>Wednesday</option><option>Thursday</option>
+<option>Friday</option><option>Saturday</option>
+</select>
+<label>Start Time</label><input id="start" type="time" required>
+<label>End Time</label><input id="end" type="time" required>
+<button>Save Time Slot</button>
+</form>
+<div id="slotsList"></div>
+</section>
+
+<section id="generate" class="panel hidden">
+<h2>Automatic Timetable Generation</h2>
+<p>First add classes, teachers, subjects, rooms and time slots.</p>
+<button onclick="generateTimetable()">Generate Timetable</button>
+<p id="genMessage" role="status"></p>
+</section>
+
+<section id="timetable" class="panel hidden">
+<h2>Weekly College Timetable</h2>
+<div id="tableOutput"></div>
+<div class="no-print">
+<button onclick="window.print()">🖨️ Print Timetable</button>
+<button onclick="downloadCSV()">Download CSV</button>
+</div>
+</section>
+</main>
+
+<script>
+const keys=['teachers','subjects','classes','rooms','slots','timetable'];
+const read=k=>JSON.parse(localStorage.getItem('tt_'+k)||'[]');
+const save=(k,v)=>localStorage.setItem('tt_'+k,JSON.stringify(v));
+let role='',currentUser='';
+
+function login(e){
+ e.preventDefault();
+ const id=document.getElementById('loginId').value.trim();
+ const pw=document.getElementById('loginPassword').value;
+ const msg=document.getElementById('loginMessage');
+ if(id==='admin'&&pw==='Admin@123'){
+   role='admin';currentUser='Administrator';
+ }else{
+   const t=read('teachers').find(x=>x.id===id&&x.password===pw);
+   if(!t){msg.textContent='Incorrect login ID or password. Try again.';return;}
+   role='teacher';currentUser=t.name;
+ }
+ msg.textContent='';
+ document.getElementById('login').classList.add('hidden');
+ document.getElementById('menu').classList.remove('hidden');
+ document.getElementById('welcome').textContent='Logged in as '+currentUser+' ('+role+').';
+ document.querySelectorAll('#menu button').forEach(b=>{
+   b.classList.toggle('hidden',role==='teacher'&&!/Home|Timetable|Logout/.test(b.textContent));
+ });
+ showPage('home');
+}
+
+function logout(){
+ role='';currentUser='';
+ document.getElementById('menu').classList.add('hidden');
+ document.getElementById('login').classList.remove('hidden');
+ document.getElementById('loginPassword').value='';
+ showPage('login');
+}
+
+function showPage(id){
+ document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+ document.getElementById(id).classList.remove('hidden');
+ refresh();
+}
+
+function addRecord(e,k){
+ e.preventDefault();
+ if(role!=='admin'){alert('Admin login required.');return;}
+ let obj;
+ if(k==='teachers'){
+   const id=tid.value.trim();
+   if(read(k).some(x=>x.id===id)){alert('Login ID already exists.');return;}
+   obj={name:tname.value.trim(),id,password:tpw.value};
+ }else if(k==='subjects'){
+   obj={name:sname.value.trim(),code:scode.value.trim(),
+   classId:sclass.value,teacherId:steacher.value,
+   periods:Number(periods.value)};
+ }else if(k==='classes'){
+   obj={name:cname.value.trim(),division:cdivision.value.trim()};
+ }else if(k==='rooms'){
+   obj={name:rname.value.trim()};
+ }else if(k==='slots'){
+   if(start.value>=end.value){alert('End time must be after start time.');return;}
+   obj={day:day.value,start:start.value,end:end.value};
+   if(read(k).some(x=>x.day===obj.day&&x.start===obj.start)){
+     alert('A slot already exists at this start time.');return;
+   }
+ }
+ const arr=read(k);arr.push(obj);save(k,arr);
+ e.target.reset();refresh();
+ alert('Saved successfully!');
+}
+
+function safe(s){
+ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function options(id,items,labelFn){
+ const el=document.getElementById(id);if(!el)return;
+ const old=el.value;
+ el.innerHTML='<option value="">Select</option>'+items.map((x,i)=>
+ `<option value="${i}">${safe(labelFn(x))}</option>`).join('');
+ if(items[old])el.value=old;
+}
+function listHTML(k,fn){
+ const arr=read(k);
+ return arr.length?'<div class="tablewrap"><table><tr><th>Details</th></tr>'+
+ arr.map(x=>'<tr><td>'+safe(fn(x))+'</td></tr>').join('')+
+ '</table></div>':'<p>No records added yet.</p>';
+}
+function refresh(){
+ if(!document.getElementById('teachersList'))return;
+ teachersList.innerHTML=listHTML('teachers',x=>x.name+' — Login ID: '+x.id);
+ subjectsList.innerHTML=listHTML('subjects',x=>x.code+' — '+x.name+' — '+className(x.classId)+' — '+teacherName(x.teacherId)+' — '+x.periods+' periods/week');
+ classesList.innerHTML=listHTML('classes',x=>x.name+' Division '+x.division);
+ roomsList.innerHTML=listHTML('rooms',x=>x.name);
+ slotsList.innerHTML=listHTML('slots',x=>x.day+' '+x.start+'–'+x.end);
+ options('sclass',read('classes'),x=>x.name+' '+x.division);
+ options('steacher',read('teachers'),x=>x.name);
+ renderTimetable();
+}
+function className(i){const x=read('classes')[i];return x?x.name+' '+x.division:'Unknown class';}
+function teacherName(i){const x=read('teachers')[i];return x?x.name:'Unknown teacher';}
+function renderTimetable(){
+ const data=read('timetable');
+ const out=document.getElementById('tableOutput');
+ if(!out)return;
+ if(!data.length){out.innerHTML='<p>No timetable generated yet.</p>';return;}
+ out.innerHTML='<div class="tablewrap"><table><tr><th>Day</th><th>Time</th><th>Class</th><th>Subject</th><th>Teacher</th><th>Room</th></tr>'+
+ data.map(x=>`<tr><td>${safe(x.day)}</td><td>${safe(x.time)}</td><td>${safe(className(x.classId))}</td><td>${safe(x.subject)}</td><td>${safe(x.teacher)}</td><td>${safe(x.room)}</td></tr>`).join('')+
+ '</table></div>';
+}
+function generateTimetable(){
+ if(role!=='admin'){alert('Admin login required.');return;}
+ const classes=read('classes'),subjects=read('subjects'),rooms=read('rooms'),slots=read('slots');
+ if(!classes.length||!subjects.length||!rooms.length||!slots.length){
+   genMessage.textContent='Please add at least one class, subject, room and time slot first.';return;
+ }
+ let result=[],usedTeacher=new Set(),usedClass=new Set(),usedRoom=new Set();
+ const sortedSlots=slots.slice().sort((a,b)=>a.day.localeCompare(b.day)||a.start.localeCompare(b.start));
+ for(let ci=0;ci<classes.length;ci++){
+   const needed=subjects.filter(s=>Number(s.classId)===ci);
+   for(const sub of needed){
+     let count=0;
+     for(const slot of sortedSlots){
+       if(count>=sub.periods)break;
+       const key=slot.day+'|'+slot.start;
+       const tk=key+'|'+sub.teacherId;
+       const ck=key+'|'+ci;
+       if(usedTeacher.has(tk)||usedClass.has(ck))continue;
+       const ri=rooms.findIndex((r,i)=>!usedRoom.has(key+'|'+i));
+       if(ri<0)continue;
+       usedTeacher.add(tk);usedClass.add(ck);usedRoom.add(key+'|'+ri);
+       result.push({day:slot.day,time:slot.start+'–'+slot.end,
+       classId:String(ci),subject:sub.name,teacher:teacherName(sub.teacherId),room:rooms[ri].name});
+       count++;
+     }
+     if(count<sub.periods){
+       genMessage.textContent='Warning: '+sub.name+' could fit only '+count+' of '+sub.periods+' requested periods. Add more time slots or rooms.';
+       save('timetable',result);renderTimetable();return;
+     }
+   }
+ }
+ save('timetable',result);
+ genMessage.textContent='Timetable generated and saved! Review it before printing.';
+ renderTimetable();
+}
+function downloadCSV(){
+ const data=read('timetable');
+ if(!data.length){alert('Generate a timetable first.');return;}
+ const rows=[['Day','Time','Class','Subject','Teacher','Room'],
+ ...data.map(x=>[x.day,x.time,className(x.classId),x.subject,x.teacher,x.room])];
+ const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+ a.download='college-timetable.csv';a.click();URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
